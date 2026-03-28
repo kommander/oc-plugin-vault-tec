@@ -73,6 +73,7 @@ type Cfg = {
   theme: string
   set: boolean
   scan: boolean
+  scanSpeed: number
   vignette: number
   sidebar: boolean
   tips: boolean
@@ -105,6 +106,7 @@ const cfg = (opts: Record<string, unknown> | undefined): Cfg => {
     theme: pick(opts?.theme, "vault-tec"),
     set: bool(opts?.set_theme, true),
     scan: bool(opts?.scanlines, true),
+    scanSpeed: Math.max(0, num(opts?.scanline_speed, 0.012)),
     vignette: Math.max(0, num(opts?.vignette, 0.75)),
     sidebar: bool(opts?.sidebar, true),
     tips: bool(opts?.tips, true),
@@ -249,7 +251,7 @@ const slot = (api: Parameters<TuiPlugin>[0], value: Cfg): TuiSlotPlugin[] => {
   ]
 }
 
-const scan = (v: number) => {
+const scan = (v: number, speed: number) => {
   const vignette = new VignetteEffect(v)
   let time = 0
   return (buf: Parameters<typeof vignette.apply>[0], dt: number) => {
@@ -259,19 +261,19 @@ const scan = (v: number) => {
     const bg = buf.buffers.bg
     time += dt
 
-    // Multiple v-sync bands moving bottom-to-top at different speeds
-    // Each band is ~4-8 rows tall with soft edges
+    // Multiple v-sync bands moving bottom-to-top at the same speed
+    // Each band has a different size, boost, and phase offset
     const bands = [
-      { speed: 0.012, size: 6, boost: 0.35, phase: 0 },
-      { speed: 0.009, size: 8, boost: 0.25, phase: 0.35 },
-      { speed: 0.014, size: 5, boost: 0.3, phase: 0.7 },
+      { size: 6, boost: 0.35, phase: 0 },
+      { size: 8, boost: 0.25, phase: 0.35 },
+      { size: 5, boost: 0.3, phase: 0.7 },
     ]
 
     // Build per-row brightness multiplier
     const rowBoost = new Float32Array(h)
     for (const band of bands) {
-      // Position moves upward (bottom to top), wrapping
-      const pos = (1 - (((time * band.speed) / h + band.phase) % 1)) * h
+      // All bands move upward at the same speed, offset by phase
+      const pos = (1 - (((time * speed) / h + band.phase) % 1)) * h
       const half = band.size / 2
       for (let i = 0; i < band.size; i++) {
         const y = Math.floor(pos + i) % h
@@ -335,7 +337,7 @@ const tui: TuiPlugin = async (api, options) => {
   let post: ReturnType<typeof scan> | undefined
   let live = false
   if (value.scan) {
-    post = scan(value.vignette)
+    post = scan(value.vignette, value.scanSpeed)
     api.renderer.addPostProcessFn(post)
     api.renderer.requestLive()
     live = true
