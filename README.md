@@ -2,6 +2,8 @@
 
 Vault-Tec is an OpenCode plugin that applies a Vault-Tec system prompt and a Vault-Tec TUI experience.
 
+![Vault-Tec demo](assets/demo.png)
+
 ## Installation
 
 Install from the CLI:
