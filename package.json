@@ -1,11 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "oc-plugin-vault-tec",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
-  "main": "./server.ts",
   "exports": {
-    ".": "./server.ts",
     "./server": "./server.ts",
     "./tui": "./tui.tsx"
   },
