@@ -1,6 +1,6 @@
 # Vault-Tec plugin for OpenCode
 
-Vault-Tec is an OpenCode plugin that applies a Vault-Tec system prompt and a Vault-Tec TUI experience.
+A Vault-Tec personality matrix that transforms your standard-issue coding terminal into a fully operational pre-War RobCo engineering assistant, complete with Overseer-level clearance, atomic-age corporate optimism, and all 122 vault experiment dossiers -- because even in the irradiated hellscape of software development, Vault-Tec is Preparing for the Future!
 
 ![Vault-Tec demo](assets/demo.png)
 
