@@ -1,9 +1,9 @@
 // @ts-nocheck
 /** @jsxImportSource @opentui/solid */
 import { VignetteEffect } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/solid"
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import type { TuiPlugin, TuiPluginModule, TuiSlotPlugin, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
-import { createMemo, createSignal } from "solid-js"
+import { Show, createMemo, createSignal } from "solid-js"
 import { Tips } from "./tips"
 
 const id = "vault-tec"
@@ -79,6 +79,87 @@ type Cfg = {
   tips: boolean
 }
 
+type Api = Parameters<TuiPlugin>[0]
+
+type ToggleField = "set" | "scan" | "sidebar" | "tips"
+type NumberField = "scanSpeed" | "vignette"
+type Field = ToggleField | NumberField
+
+type SettingRow = {
+  key: Field
+  title: string
+  description: string
+  category: string
+  kind: "toggle" | "number"
+  step?: number
+  min?: number
+  max?: number
+  digits?: number
+}
+
+const rows: SettingRow[] = [
+  {
+    key: "set",
+    title: "Apply Vault-Tec theme",
+    description: "Set configured theme when enabled",
+    category: "Visual",
+    kind: "toggle",
+  },
+  {
+    key: "scan",
+    title: "CRT scanlines",
+    description: "Animated v-sync bands",
+    category: "Visual",
+    kind: "toggle",
+  },
+  {
+    key: "scanSpeed",
+    title: "Scanline speed",
+    description: "Left/Right adjusts by 0.002",
+    category: "Visual",
+    kind: "number",
+    step: 0.002,
+    min: 0,
+    digits: 3,
+  },
+  {
+    key: "vignette",
+    title: "Vignette strength",
+    description: "Left/Right adjusts by 0.05",
+    category: "Visual",
+    kind: "number",
+    step: 0.05,
+    min: 0,
+    max: 1,
+    digits: 2,
+  },
+  {
+    key: "sidebar",
+    title: "Vault side panel",
+    description: "Companion art and monitor card",
+    category: "Layout",
+    kind: "toggle",
+  },
+  {
+    key: "tips",
+    title: "Vault tips",
+    description: "Custom home screen guidance",
+    category: "Home",
+    kind: "toggle",
+  },
+]
+
+const byField = Object.fromEntries(rows.map((item) => [item.key, item])) as Record<Field, SettingRow>
+
+const settingKey = {
+  set: `${id}.setting.set_theme`,
+  scan: `${id}.setting.scanlines`,
+  scanSpeed: `${id}.setting.scanline_speed`,
+  vignette: `${id}.setting.vignette`,
+  sidebar: `${id}.setting.sidebar`,
+  tips: `${id}.setting.tips`,
+} as const
+
 const rec = (value: unknown) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return
   return Object.fromEntries(Object.entries(value))
@@ -111,6 +192,92 @@ const cfg = (opts: Record<string, unknown> | undefined): Cfg => {
     sidebar: bool(opts?.sidebar, true),
     tips: bool(opts?.tips, true),
   }
+}
+
+const clamp = (value: number, min: number, max: number) => {
+  if (value < min) return min
+  if (value > max) return max
+  return value
+}
+
+const withKV = (api: Api, value: Cfg): Cfg => {
+  return {
+    ...value,
+    set: bool(api.kv.get(settingKey.set, value.set), value.set),
+    scan: bool(api.kv.get(settingKey.scan, value.scan), value.scan),
+    scanSpeed: Math.max(0, num(api.kv.get(settingKey.scanSpeed, value.scanSpeed), value.scanSpeed)),
+    vignette: clamp(num(api.kv.get(settingKey.vignette, value.vignette), value.vignette), 0, 1),
+    sidebar: bool(api.kv.get(settingKey.sidebar, value.sidebar), value.sidebar),
+    tips: bool(api.kv.get(settingKey.tips, value.tips), value.tips),
+  }
+}
+
+const status = (value: boolean) => {
+  return value ? "ON" : "OFF"
+}
+
+const metric = (value: Cfg, key: NumberField) => {
+  if (key === "scanSpeed") return value.scanSpeed.toFixed(3)
+  return value.vignette.toFixed(2)
+}
+
+const Settings = (props: {
+  api: Api
+  value: () => Cfg
+  flip: (key: ToggleField) => void
+  tune: (key: NumberField, dir: -1 | 1) => void
+}) => {
+  const [cur, setCur] = createSignal<Field>(rows[0]?.key ?? "set")
+
+  const current = createMemo(() => byField[cur()] ?? byField.set)
+  const options = createMemo(() => {
+    const value = props.value()
+    return rows.map((item) => {
+      const footer = item.kind === "toggle" ? status(value[item.key]) : metric(value, item.key)
+      return {
+        title: item.title,
+        value: item.key,
+        description: item.description,
+        category: item.category,
+        footer,
+      }
+    })
+  })
+
+  useKeyboard((evt) => {
+    const item = current()
+    if (!item) return
+
+    if (evt.name === "space" && item.kind === "toggle") {
+      evt.preventDefault()
+      evt.stopPropagation()
+      props.flip(item.key)
+      return
+    }
+
+    if (item.kind !== "number") return
+    if (evt.name !== "left" && evt.name !== "right") return
+    evt.preventDefault()
+    evt.stopPropagation()
+    props.tune(item.key, evt.name === "left" ? -1 : 1)
+  })
+
+  return (
+    <props.api.ui.DialogSelect
+      title="Vault-Tec settings (Space toggles, Left/Right tune)"
+      placeholder="Filter settings"
+      options={options()}
+      current={cur()}
+      onMove={(item) => setCur(item.value)}
+      onSelect={(item) => {
+        setCur(item.value)
+        const next = byField[item.value]
+        if (next?.kind === "toggle") {
+          props.flip(next.key)
+        }
+      }}
+    />
+  )
 }
 
 const Home = (props: { theme: TuiThemeCurrent }) => {
@@ -204,7 +371,7 @@ const Card = (props: { theme: TuiThemeCurrent; session: string }) => {
   )
 }
 
-const slot = (api: Parameters<TuiPlugin>[0], value: Cfg): TuiSlotPlugin[] => {
+const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
   return [
     {
       slots: {
@@ -213,41 +380,45 @@ const slot = (api: Parameters<TuiPlugin>[0], value: Cfg): TuiSlotPlugin[] => {
         },
       },
     },
-    ...(value.sidebar
-      ? [
-          {
-            order: 50,
-            slots: {
-              sidebar_content(ctx) {
-                return <Side theme={ctx.theme.current} />
-              },
-            },
-          },
-          {
-            order: 650,
-            slots: {
-              sidebar_content(ctx, input) {
-                return <Card theme={ctx.theme.current} session={input.session_id} />
-              },
-            },
-          },
-        ]
-      : []),
-    ...(value.tips
-      ? [
-          {
-            order: 100,
-            slots: {
-              home_bottom(ctx) {
-                const hide = createMemo(() => api.kv.get("tips_hidden", false))
-                const first = createMemo(() => api.state.session.count() === 0)
-                const show = createMemo(() => !first() && !hide())
-                return <Tips theme={ctx.theme.current} show={show()} />
-              },
-            },
-          },
-        ]
-      : []),
+    {
+      order: 50,
+      slots: {
+        sidebar_content(ctx) {
+          return (
+            <Show when={value().sidebar}>
+              <Side theme={ctx.theme.current} />
+            </Show>
+          )
+        },
+      },
+    },
+    {
+      order: 650,
+      slots: {
+        sidebar_content(ctx, input) {
+          return (
+            <Show when={value().sidebar}>
+              <Card theme={ctx.theme.current} session={input.session_id} />
+            </Show>
+          )
+        },
+      },
+    },
+    {
+      order: 100,
+      slots: {
+        home_bottom(ctx) {
+          const hide = createMemo(() => api.kv.get("tips_hidden", false))
+          const first = createMemo(() => api.state.session.count() === 0)
+          const show = createMemo(() => !first() && !hide())
+          return (
+            <Show when={value().tips}>
+              <Tips theme={ctx.theme.current} show={show()} />
+            </Show>
+          )
+        },
+      },
+    },
   ]
 }
 
@@ -304,48 +475,149 @@ const scan = (v: number, speed: number) => {
 }
 
 const tui: TuiPlugin = async (api, options) => {
-  const value = cfg(rec(options))
-  if (!value.enabled) return
+  const boot = cfg(rec(options))
+  if (!boot.enabled) return
+
+  const [value, setValue] = createSignal(withKV(api, boot))
 
   await api.theme.install("./vault-tec.json")
-  if (value.set) {
-    api.theme.set(value.theme)
+  if (value().set) {
+    api.theme.set(value().theme)
   }
 
   let tips = false
-  if (value.tips) {
-    const row = api.plugins.list().find((item) => item.id === "internal:home-tips")
-    if (row?.enabled) {
-      tips = await api.plugins.deactivate("internal:home-tips")
+  const disableTips = async () => {
+    if (tips) return
+    const item = api.plugins.list().find((entry) => entry.id === "internal:home-tips")
+    if (!item?.enabled || !item.active) return
+    const ok = await api.plugins.deactivate("internal:home-tips")
+    if (!ok) {
+      api.ui.toast({
+        variant: "warning",
+        message: "Vault tips enabled, but default tips could not be disabled.",
+      })
+      return
     }
+    tips = true
+  }
 
-    api.command.register(() => [
-      {
-        title: api.kv.get("tips_hidden", false) ? "Show tips" : "Hide tips",
-        value: "tips.toggle",
-        keybind: "tips_toggle",
-        category: "System",
-        hidden: api.route.current.name !== "home",
-        onSelect() {
-          api.kv.set("tips_hidden", !api.kv.get("tips_hidden", false))
-          api.ui.dialog.clear()
-        },
-      },
-    ])
+  const restoreTips = async () => {
+    if (!tips) return
+    const ok = await api.plugins.activate("internal:home-tips")
+    if (!ok) {
+      api.ui.toast({
+        variant: "warning",
+        message: "Failed to restore default home tips.",
+      })
+      return
+    }
+    tips = false
+  }
+
+  const write = (key: Field, next: unknown) => {
+    api.kv.set(settingKey[key], next)
   }
 
   let post: ReturnType<typeof scan> | undefined
   let live = false
-  if (value.scan) {
-    post = scan(value.vignette, value.scanSpeed)
-    api.renderer.addPostProcessFn(post)
-    api.renderer.requestLive()
-    live = true
-  }
-  api.lifecycle.onDispose(async () => {
-    if (tips) {
-      await api.plugins.activate("internal:home-tips")
+  const applyScan = () => {
+    if (post) {
+      api.renderer.removePostProcessFn(post)
+      post = undefined
     }
+
+    const state = value()
+    if (!state.scan) {
+      if (live) {
+        api.renderer.dropLive()
+        live = false
+      }
+      return
+    }
+
+    post = scan(state.vignette, state.scanSpeed)
+    api.renderer.addPostProcessFn(post)
+    if (!live) {
+      api.renderer.requestLive()
+      live = true
+    }
+  }
+
+  const update = (key: Field, next: unknown) => {
+    const prev = value()
+    if (prev[key] === next) return
+    const state = {
+      ...prev,
+      [key]: next,
+    }
+    setValue(state)
+    write(key, state[key])
+
+    if (key === "set" && state.set) {
+      api.theme.set(state.theme)
+    }
+
+    if (key === "scan" || key === "scanSpeed" || key === "vignette") {
+      applyScan()
+    }
+
+    if (key === "tips") {
+      if (state.tips) {
+        void disableTips()
+      } else {
+        void restoreTips()
+      }
+    }
+  }
+
+  const flip = (key: ToggleField) => {
+    update(key, !value()[key])
+  }
+
+  const tune = (key: NumberField, dir: -1 | 1) => {
+    const item = byField[key]
+    if (!item || item.kind !== "number") return
+    let next = value()[key] + (item.step ?? 1) * dir
+    if (typeof item.min === "number") next = Math.max(item.min, next)
+    if (typeof item.max === "number") next = Math.min(item.max, next)
+    next = Number(next.toFixed(item.digits ?? 3))
+    update(key, next)
+  }
+
+  const showSettings = () => {
+    api.ui.dialog.replace(() => <Settings api={api} value={value} flip={flip} tune={tune} />)
+  }
+
+  if (value().tips) {
+    await disableTips()
+  }
+  applyScan()
+
+  api.command.register(() => [
+    {
+      title: "Vault-Tec settings",
+      value: "vault-tec.settings",
+      category: "System",
+      onSelect() {
+        showSettings()
+      },
+    },
+    {
+      title: api.kv.get("tips_hidden", false) ? "Show tips" : "Hide tips",
+      value: "tips.toggle",
+      keybind: "tips_toggle",
+      category: "System",
+      hidden: api.route.current.name !== "home" || !value().tips,
+      onSelect() {
+        if (!value().tips) return
+        api.kv.set("tips_hidden", !api.kv.get("tips_hidden", false))
+        api.ui.dialog.clear()
+      },
+    },
+  ])
+
+  api.lifecycle.onDispose(async () => {
+    await restoreTips()
     if (post) {
       api.renderer.removePostProcessFn(post)
     }
