@@ -115,7 +115,7 @@ const rows: SettingRow[] = [
   {
     key: "scanSpeed",
     title: "Scanline speed",
-    description: "Left/Right adjusts by 0.002",
+    description: "Animation speed for v-sync bands",
     category: "Visual",
     kind: "number",
     step: 0.002,
@@ -125,7 +125,7 @@ const rows: SettingRow[] = [
   {
     key: "vignette",
     title: "Vignette strength",
-    description: "Left/Right adjusts by 0.05",
+    description: "Screen edge darkening strength",
     category: "Visual",
     kind: "number",
     step: 0.05,
@@ -228,6 +228,7 @@ const Settings = (props: {
   tune: (key: NumberField, dir: -1 | 1) => void
 }) => {
   const [cur, setCur] = createSignal<Field>(rows[0]?.key ?? "set")
+  const theme = createMemo(() => props.api.theme.current)
 
   const current = createMemo(() => byField[cur()] ?? byField.set)
   const options = createMemo(() => {
@@ -255,28 +256,47 @@ const Settings = (props: {
       return
     }
 
-    if (item.kind !== "number") return
     if (evt.name !== "left" && evt.name !== "right") return
     evt.preventDefault()
     evt.stopPropagation()
+    if (item.kind === "toggle") {
+      props.flip(item.key)
+      return
+    }
     props.tune(item.key, evt.name === "left" ? -1 : 1)
   })
 
   return (
-    <props.api.ui.DialogSelect
-      title="Vault-Tec settings (Space toggles, Left/Right tune)"
-      placeholder="Filter settings"
-      options={options()}
-      current={cur()}
-      onMove={(item) => setCur(item.value)}
-      onSelect={(item) => {
-        setCur(item.value)
-        const next = byField[item.value]
-        if (next?.kind === "toggle") {
-          props.flip(next.key)
-        }
-      }}
-    />
+    <box flexDirection="column">
+      <props.api.ui.DialogSelect
+        title="Vault-Tec settings"
+        placeholder="Filter settings"
+        options={options()}
+        current={cur()}
+        onMove={(item) => setCur(item.value)}
+        onSelect={(item) => {
+          setCur(item.value)
+          const next = byField[item.value]
+          if (next?.kind === "toggle") {
+            props.flip(next.key)
+          }
+        }}
+      />
+      <box paddingRight={2} paddingLeft={4} flexDirection="row" gap={2} paddingTop={1} paddingBottom={1} flexShrink={0}>
+        <text>
+          <span style={{ fg: theme().text }}>
+            <b>toggle</b>{" "}
+          </span>
+          <span style={{ fg: theme().textMuted }}>space enter left/right</span>
+        </text>
+        <text>
+          <span style={{ fg: theme().text }}>
+            <b>adjust</b>{" "}
+          </span>
+          <span style={{ fg: theme().textMuted }}>left/right</span>
+        </text>
+      </box>
+    </box>
   )
 }
 
