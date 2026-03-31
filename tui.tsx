@@ -527,6 +527,7 @@ const tui: TuiPlugin = async (api, options) => {
   if (value().tips) {
     await disableTips()
   }
+  await api.plugins.deactivate("internal:sidebar-context")
   applyScan()
 
   api.command.register(() => [
