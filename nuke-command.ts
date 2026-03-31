@@ -5,18 +5,18 @@ import type { TuiPlugin } from "@opencode-ai/plugin/tui"
 type Api = Parameters<TuiPlugin>[0]
 
 const FLASH_MATRIX = new Float32Array([
+  0.9,
+  0.55,
+  0.2,
+  0.04,
+  0.65,
   2.8,
-  0,
-  0,
-  0.45,
-  0,
-  2.8,
-  0,
-  0.45,
-  0,
-  0,
-  2.8,
-  0.45,
+  0.65,
+  0.34,
+  0.2,
+  0.55,
+  0.9,
+  0.04,
   0,
   0,
   0,
@@ -90,6 +90,25 @@ type CloudGlyph = {
   warmth: number
 }
 
+const CLOUD_TOP = {
+  r: 0.2,
+  g: 1,
+  b: 0.2,
+}
+
+const CLOUD_BOTTOM = {
+  r: 0.08,
+  g: 0.48,
+  b: 0.09,
+}
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+const isCloudInk = (codePoint: number) => {
+  if (codePoint === BRAILLE_BLANK) return false
+  return !/\s/u.test(String.fromCodePoint(codePoint))
+}
+
 const clamp01 = (value: number) => {
   if (value < 0) return 0
   if (value > 1) return 1
@@ -149,15 +168,14 @@ const createNukePostProcess = (onDone: () => void) => {
         const x = startX + col
         if (x < 0 || x >= width) continue
         const codePoint = line[col]
+        if (!isCloudInk(codePoint)) continue
         nextGlyphs.push({
           x,
           y,
           codePoint,
           warmth,
         })
-        if (codePoint !== BRAILLE_BLANK && codePoint !== 32) {
-          nextMask.push(x, y, 1)
-        }
+        nextMask.push(x, y, 1)
       }
     }
 
@@ -178,9 +196,9 @@ const createNukePostProcess = (onDone: () => void) => {
       chars[index] = glyph.codePoint
       attrs[index] = 0
 
-      fg[colorIndex] = 0.78 + glyph.warmth * 0.22
-      fg[colorIndex + 1] = 0.58 + glyph.warmth * 0.30
-      fg[colorIndex + 2] = 0.36 + glyph.warmth * 0.28
+      fg[colorIndex] = lerp(CLOUD_BOTTOM.r, CLOUD_TOP.r, glyph.warmth)
+      fg[colorIndex + 1] = lerp(CLOUD_BOTTOM.g, CLOUD_TOP.g, glyph.warmth)
+      fg[colorIndex + 2] = lerp(CLOUD_BOTTOM.b, CLOUD_TOP.b, glyph.warmth)
       fg[colorIndex + 3] = 1
     }
   }
