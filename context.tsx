@@ -108,7 +108,7 @@ export const PipBoyContext = (props: {
         paddingLeft={2}
         paddingRight={2}
         paddingTop={1}
-        paddingBottom={1}
+        width="100%"
         flexDirection="column"
       >
         <text fg={props.theme.primary}>
