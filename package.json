@@ -8,11 +8,28 @@
     "url": "git+https://github.com/kommander/oc-plugin-vault-tec.git"
   },
   "exports": {
-    "./server": "./server.ts",
-    "./tui": "./tui.tsx"
+    "./server": {
+      "import": "./server.ts",
+      "config": {
+        "enabled": true,
+        "mode": "append"
+      }
+    },
+    "./tui": {
+      "import": "./tui.tsx",
+      "config": {
+        "enabled": true,
+        "set_theme": true,
+        "scanlines": true,
+        "scanline_speed": 0.012,
+        "vignette": 0.75,
+        "sidebar": true,
+        "tips": true
+      }
+    }
   },
   "engines": {
-    "opencode": ">=1.3.7"
+    "opencode": ">=1.3.12"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": "*",
