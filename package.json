@@ -19,9 +19,5 @@
     "@opentui/core": "*",
     "@opentui/solid": "*",
     "solid-js": "*"
-  },
-  "oc-plugin": [
-    "server",
-    "tui"
-  ]
+  }
 }
