@@ -19,8 +19,6 @@ const side = [
 export const Side = (props: { theme: TuiThemeCurrent }) => {
   return (
     <box
-      paddingTop={1}
-      paddingBottom={1}
       paddingLeft={1}
       paddingRight={1}
       alignItems="center"
