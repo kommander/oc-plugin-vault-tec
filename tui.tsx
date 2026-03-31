@@ -231,12 +231,12 @@ const Card = (props: { theme: TuiThemeCurrent; session: string }) => {
 
 const vaultPrompts = {
   normal: [
-    "Review the Vault 101 Overseer logs for containment breaches",
-    "Analyze G.E.C.K. terraforming module output for radiation leaks",
-    "Audit Vault 127 reactor coolant loop for thermal anomalies",
-    "Generate S.P.E.C.I.A.L. stat distribution for new Vault Dweller recruit",
+    "Check Vault 101 Overseer logs for containment breaches",
+    "Analyze G.E.C.K. module output for radiation leaks",
+    "Audit Vault 127 reactor coolant loop for anomalies",
+    "Generate S.P.E.C.I.A.L. stats for new Vault Dweller",
     "Inspect Pip-Boy V.A.T.S. targeting calibration matrix",
-    "Decode holotape archive from Big MT Research & Development",
+    "Decode holotape archive from Big MT R&D facility",
   ],
   shell: [
     "vault-tec --scan --deep --sector 7G",
