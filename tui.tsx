@@ -229,12 +229,60 @@ const Card = (props: { theme: TuiThemeCurrent; session: string }) => {
   )
 }
 
+const vaultPrompts = {
+  normal: [
+    "Review the Vault 101 Overseer logs for containment breaches",
+    "Analyze G.E.C.K. terraforming module output for radiation leaks",
+    "Audit Vault 127 reactor coolant loop for thermal anomalies",
+    "Generate S.P.E.C.I.A.L. stat distribution for new Vault Dweller recruit",
+    "Inspect Pip-Boy V.A.T.S. targeting calibration matrix",
+    "Decode holotape archive from Big MT Research & Development",
+  ],
+  shell: [
+    "vault-tec --scan --deep --sector 7G",
+    "pipboy diagnostics --module geiger --verbose",
+    "robco status --vault 127 --seal-integrity",
+    "grep -r 'containment breach' /vault/logs/overseer/",
+    "vault-reactor --check-coolant --level B4",
+    "nuka-cola --inventory --flavor quantum",
+  ],
+}
+
 const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
   return [
     {
       slots: {
         home_logo(ctx) {
           return <Home theme={ctx.theme.current} />
+        },
+        home_prompt(ctx, value) {
+          type Prompt = (props: {
+            workspaceID?: string
+            hint?: JSX.Element
+            placeholders?: {
+              normal?: string[]
+              shell?: string[]
+            }
+          }) => JSX.Element
+          if (!("Prompt" in api.ui)) return null
+          const view = api.ui.Prompt
+          if (typeof view !== "function") return null
+          const Prompt = view as Prompt
+          const theme = ctx.theme.current
+          const Hint = (
+            <box flexShrink={0} flexDirection="row" gap={1}>
+              <text fg={theme.textMuted}>
+                <span style={{ fg: theme.primary }}>Vault-Tec</span> Automated Research Terminal -- Preparing for the Future!
+              </text>
+            </box>
+          )
+          return (
+            <Prompt
+              workspaceID={value.workspace_id}
+              hint={Hint}
+              placeholders={{ normal: vaultPrompts.normal, shell: vaultPrompts.shell }}
+            />
+          )
         },
       },
     },
