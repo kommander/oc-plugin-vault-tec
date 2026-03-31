@@ -386,6 +386,86 @@ const createNukePostProcess = (onDone: () => void) => {
     return clamp01((elapsed - LOGO_FADE_START_MS) / LOGO_FADE_MS)
   }
 
+  const glitchStrength = () => {
+    // Brief pulse during first flash
+    if (elapsed < FLASH_ONE_MS) {
+      return Math.sin(clamp01(elapsed / FLASH_ONE_MS) * Math.PI) * 0.15
+    }
+    // Quiet during gap
+    if (elapsed < FLASH_TWO_START_MS) return 0
+
+    // EMP: ramp during second flash attack, peak at cloud start, quadratic decay
+    let emp = 0
+    if (elapsed < CLOUD_FADE_START_MS) {
+      emp = clamp01((elapsed - FLASH_TWO_START_MS) / FLASH_TWO_ATTACK_MS) * 0.85
+    } else {
+      const decay = (elapsed - CLOUD_FADE_START_MS) / 800
+      if (decay < 1) emp = (1 - decay) * (1 - decay) * 0.85
+    }
+
+    // Periodic aftershocks — high-power sins for sharp deterministic spikes
+    const t = elapsed * 0.001
+    const s1 = Math.pow(Math.max(0, Math.sin(t * 1.7 + 0.3)), 14) * 0.25
+    const s2 = Math.pow(Math.max(0, Math.sin(t * 2.3 - 1.1)), 18) * 0.2
+    const s3 = Math.pow(Math.max(0, Math.sin(t * 0.7 + 2.5)), 22) * 0.35
+
+    return clamp01(emp + s1 + s2 + s3)
+  }
+
+  const applyGlitch = (buf: any, strength: number) => {
+    const width = buf.width
+    const height = buf.height
+    const chars = buf.buffers.char
+    const attrs = buf.buffers.attributes
+    const fg = buf.buffers.fg
+    const frameSeed = (((elapsed / 40) | 0) * 7919) >>> 0
+
+    for (let y = 0; y < height; y++) {
+      const rowHash = ((y * 73856093) ^ frameSeed) >>> 0
+      if ((rowHash & 1023) / 1023 > strength) continue
+
+      const rowStart = y * width
+      const effect = (rowHash >> 10) & 3
+
+      if (effect <= 1) {
+        // Horizontal row displacement
+        const maxShift = Math.ceil(strength * 5)
+        const shift = ((rowHash >> 12) % (maxShift * 2 + 1)) - maxShift || 1
+
+        if (shift > 0) {
+          for (let x = width - 1; x >= shift; x--) {
+            const di = rowStart + x, si = di - shift
+            chars[di] = chars[si]; attrs[di] = attrs[si]
+            const dc = di * 4, sc = si * 4
+            fg[dc] = fg[sc]; fg[dc + 1] = fg[sc + 1]; fg[dc + 2] = fg[sc + 2]; fg[dc + 3] = fg[sc + 3]
+          }
+        } else {
+          const s = -shift
+          for (let x = 0; x < width - s; x++) {
+            const di = rowStart + x, si = di + s
+            chars[di] = chars[si]; attrs[di] = attrs[si]
+            const dc = di * 4, sc = si * 4
+            fg[dc] = fg[sc]; fg[dc + 1] = fg[sc + 1]; fg[dc + 2] = fg[sc + 2]; fg[dc + 3] = fg[sc + 3]
+          }
+        }
+      } else if (effect === 2) {
+        // Scanline flash — bright green-biased line
+        const boost = strength * 0.7
+        for (let x = 0; x < width; x++) {
+          const ci = (rowStart + x) * 4
+          fg[ci] = clamp01(fg[ci] + boost * 0.5)
+          fg[ci + 1] = clamp01(fg[ci + 1] + boost)
+          fg[ci + 2] = clamp01(fg[ci + 2] + boost * 0.4)
+        }
+      } else {
+        // Chromatic aberration — offset green channel by 2 cells
+        for (let x = width - 1; x >= 2; x--) {
+          fg[(rowStart + x) * 4 + 1] = fg[(rowStart + x - 2) * 4 + 1]
+        }
+      }
+    }
+  }
+
   return (buf: any, dt: number) => {
     if (finished) return
 
@@ -425,6 +505,11 @@ const createNukePostProcess = (onDone: () => void) => {
       if (logoReveal > 0) {
         drawLogo(buf, logoReveal)
       }
+    }
+
+    const glitch = glitchStrength()
+    if (glitch > 0.01) {
+      applyGlitch(buf, glitch)
     }
 
     if (elapsed >= SEQUENCE_END_MS) {
