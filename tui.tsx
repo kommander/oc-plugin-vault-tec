@@ -14,6 +14,7 @@ import {
   type ToggleField,
 } from "./settings-dialog"
 import { PipBoyContext } from "./context"
+import { createNukeCommand } from "./nuke-command"
 import { Side } from "./side"
 import { Tips } from "./tips"
 
@@ -565,6 +566,8 @@ const tui: TuiPlugin = async (api, options) => {
   await api.plugins.deactivate("internal:sidebar-context")
   applyScan()
 
+  const nuke = createNukeCommand(api)
+
   api.command.register(() => [
     {
       title: "Vault-Tec settings",
@@ -586,9 +589,11 @@ const tui: TuiPlugin = async (api, options) => {
         api.ui.dialog.clear()
       },
     },
+    nuke.command,
   ])
 
   api.lifecycle.onDispose(async () => {
+    nuke.dispose()
     await restoreTips()
     if (post) {
       api.renderer.removePostProcessFn(post)
