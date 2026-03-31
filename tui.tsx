@@ -569,6 +569,9 @@ const tui: TuiPlugin = async (api, options) => {
   for (const item of slot(api, value)) {
     api.slots.register(item)
   }
+
+  api.renderer.targetFps = 30
+  api.renderer.maxFps = 30
 }
 
 const plugin: TuiPluginModule & { id: string } = {
