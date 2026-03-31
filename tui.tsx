@@ -13,6 +13,7 @@ import {
   type SettingsState,
   type ToggleField,
 } from "./settings-dialog"
+import { Side } from "./side"
 import { Tips } from "./tips"
 
 const id = "vault-tec"
@@ -61,21 +62,6 @@ const width = (list: string[]) => {
 }
 
 const home2w = width(home2)
-
-const side = [
-  "⠀⠀⠀⠀⠀⠀⠀⠀⣤⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⢀⣄⠀⣠⠶⠲⠞⠁⠀⠙⠛⠳⣆⠀⠀⠀⠀⠀",
-  "⠀⡟⠙⠛⠁⣀⣀⢀⡤⢤⠀⠀⠀⠙⢷⣄⠀⠀⠀",
-  "⢠⡷⢄⣠⠊⠀⠀⠁⠀⡀⠑⠒⠈⢳⠀⢻⡆⠀⠀",
-  "⠀⣷⠃⢠⡀⠀⠀⠀⠀⠈⠀⠀⠀⢎⠀⢸⡇⠀⠀",
-  "⢠⡇⠀⠘⢁⡄⠀⠀⠉⠉⠀⠀⠀⣳⢧⣾⠃⠀⠀",
-  "⢸⡇⠀⠀⠘⠆⠀⠀⢀⠀⠀⠀⠀⠁⢿⡏⠀⠀⠀",
-  "⠈⣇⠸⢖⡀⠀⠐⣂⠹⡇⠀⠀⠀⣀⣼⠇⠀⠀⠀",
-  "⠀⠹⣦⠀⠈⠭⠉⠀⠀⠀⠀⣠⡾⠉⠁⠀⠀⠀⠀",
-  "⠀⠀⠈⠳⢦⣄⣀⣀⣠⡴⠞⠋⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⠀⠀⠀⠀⠀⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-  "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",
-]
 
 type Cfg = {
   enabled: boolean
@@ -190,45 +176,6 @@ const Home = (props: { theme: TuiThemeCurrent }) => {
   )
 }
 
-const Side = (props: { theme: TuiThemeCurrent }) => {
-  return (
-    <box
-      paddingTop={1}
-      paddingBottom={1}
-      paddingLeft={1}
-      paddingRight={1}
-      alignItems="center"
-    >
-      <box flexDirection="column">
-        {side.map((line) => (
-          <text fg={props.theme.textMuted} selectable={false}>
-            {line}
-          </text>
-        ))}
-      </box>
-    </box>
-  )
-}
-
-const Card = (props: { theme: TuiThemeCurrent; session: string }) => {
-  return (
-    <box
-      paddingTop={1}
-      paddingBottom={1}
-      paddingLeft={2}
-      paddingRight={2}
-      flexDirection="column"
-      gap={1}
-    >
-      <text fg={props.theme.primary}>
-        <b>Vault-Tec monitor</b>
-      </text>
-      <text fg={props.theme.textMuted}>session {props.session.slice(0, 8)}</text>
-      <text fg={props.theme.success}>Vault seal integrity: NOMINAL</text>
-    </box>
-  )
-}
-
 const vaultPrompts = {
   normal: [
     "Check Vault 101 Overseer logs for containment breaches",
@@ -293,18 +240,6 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
           return (
             <Show when={value().sidebar}>
               <Side theme={ctx.theme.current} />
-            </Show>
-          )
-        },
-      },
-    },
-    {
-      order: 650,
-      slots: {
-        sidebar_content(ctx, input) {
-          return (
-            <Show when={value().sidebar}>
-              <Card theme={ctx.theme.current} session={input.session_id} />
             </Show>
           )
         },
