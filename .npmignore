@@ -4,5 +4,8 @@
 # Git
 .gitignore
 
+# OpenCode local config
+.opencode/
+
 # Assets (demo screenshots, not used at runtime)
 assets/
