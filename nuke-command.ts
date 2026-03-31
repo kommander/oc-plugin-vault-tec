@@ -87,7 +87,17 @@ type CloudGlyph = {
   x: number
   y: number
   codePoint: number
-  warmth: number
+  isBraille: boolean
+  baseDensity: number
+  rowNorm: number
+  drift: number
+  phase: number
+  capWeight: number
+  stemWeight: number
+  torusWeight: number
+  baseR: number
+  baseG: number
+  baseB: number
 }
 
 const CLOUD_TOP = {
@@ -102,7 +112,39 @@ const CLOUD_BOTTOM = {
   b: 0.09,
 }
 
+const STEM_START_ROW = 0.66
+const TORUS_CENTER_ROW = 0.36
+const TORUS_HALF_WIDTH = 0.18
+
+const BRAILLE_SHADE_RAMP = new Uint32Array([0x2801, 0x2803, 0x2807, 0x280f, 0x281f, 0x283f, 0x287f, 0x28ff])
+const SHADE_LAST = BRAILLE_SHADE_RAMP.length - 1
+
+const BRAILLE_DOT_COUNT = new Uint8Array(256)
+for (let bits = 0; bits < BRAILLE_DOT_COUNT.length; bits++) {
+  let value = bits
+  let count = 0
+  while (value) {
+    value &= value - 1
+    count++
+  }
+  BRAILLE_DOT_COUNT[bits] = count
+}
+
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+const phaseFromXY = (x: number, y: number) => {
+  const hash = ((x * 73856093) ^ (y * 19349663)) >>> 0
+  return ((hash & 1023) / 1023) * Math.PI * 2
+}
+
+const isBraille = (codePoint: number) => {
+  return codePoint >= 0x2800 && codePoint <= 0x28ff
+}
+
+const brailleDensity = (codePoint: number) => {
+  if (!isBraille(codePoint)) return 1
+  return BRAILLE_DOT_COUNT[codePoint - 0x2800] / 8
+}
 
 const isCloudInk = (codePoint: number) => {
   if (codePoint === BRAILLE_BLANK) return false
@@ -157,23 +199,42 @@ const createNukePostProcess = (onDone: () => void) => {
     const startX = Math.floor((width - cloudWidth) * 0.5)
     const startY = Math.max(0, height - cloudRows.length)
     const rows = Math.max(1, cloudRows.length - 1)
+    const cols = Math.max(1, cloudWidth - 1)
 
     for (let row = 0; row < cloudRows.length; row++) {
       const y = startY + row
       if (y < 0 || y >= height) continue
       const line = cloudRows[row]
+      const rowNorm = row / rows
       const warmth = 1 - row / rows
+      const stemWeight = clamp01((rowNorm - STEM_START_ROW) / (1 - STEM_START_ROW))
+      const capWeight = 1 - stemWeight
+      const torusWeight = capWeight * clamp01(1 - Math.abs(rowNorm - TORUS_CENTER_ROW) / TORUS_HALF_WIDTH)
 
       for (let col = 0; col < line.length; col++) {
         const x = startX + col
         if (x < 0 || x >= width) continue
         const codePoint = line[col]
         if (!isCloudInk(codePoint)) continue
+        const drift = (col / cols) * 2 - 1
+        const baseR = lerp(CLOUD_BOTTOM.r, CLOUD_TOP.r, warmth)
+        const baseG = lerp(CLOUD_BOTTOM.g, CLOUD_TOP.g, warmth)
+        const baseB = lerp(CLOUD_BOTTOM.b, CLOUD_TOP.b, warmth)
         nextGlyphs.push({
           x,
           y,
           codePoint,
-          warmth,
+          isBraille: isBraille(codePoint),
+          baseDensity: brailleDensity(codePoint),
+          rowNorm,
+          drift,
+          phase: phaseFromXY(x, y),
+          capWeight,
+          stemWeight,
+          torusWeight,
+          baseR,
+          baseG,
+          baseB,
         })
         nextMask.push(x, y, 1)
       }
@@ -188,17 +249,34 @@ const createNukePostProcess = (onDone: () => void) => {
     const chars = buf.buffers.char
     const attrs = buf.buffers.attributes
     const fg = buf.buffers.fg
+    const time = elapsed * 0.001
 
-    for (const glyph of cloudGlyphs) {
+    for (let i = 0; i < cloudGlyphs.length; i++) {
+      const glyph = cloudGlyphs[i]
       const index = glyph.y * width + glyph.x
       const colorIndex = index * 4
 
-      chars[index] = glyph.codePoint
+      const capRoll = Math.sin(time * 2.9 + glyph.drift * 7.1 + glyph.phase)
+      const capBillow = Math.sin(time * 4.0 - glyph.rowNorm * 6.4 + glyph.phase * 1.2)
+      const torusSpin = Math.sin(time * 6.5 - glyph.drift * 12.8 + glyph.phase * 0.85)
+      const stemRise = Math.sin(time * 8.3 + glyph.rowNorm * 15 + glyph.phase * 1.6)
+
+      const motion =
+        (capRoll * 0.45 + capBillow * 0.35) * glyph.capWeight +
+        torusSpin * 0.9 * glyph.torusWeight +
+        stemRise * 0.78 * glyph.stemWeight
+
+      const density = clamp01(glyph.baseDensity * 0.72 + 0.18 + motion * 0.24)
+      const shadeIndex = Math.min(SHADE_LAST, Math.max(0, Math.round(density * SHADE_LAST)))
+
+      chars[index] = glyph.isBraille ? BRAILLE_SHADE_RAMP[shadeIndex] : glyph.codePoint
       attrs[index] = 0
 
-      fg[colorIndex] = lerp(CLOUD_BOTTOM.r, CLOUD_TOP.r, glyph.warmth)
-      fg[colorIndex + 1] = lerp(CLOUD_BOTTOM.g, CLOUD_TOP.g, glyph.warmth)
-      fg[colorIndex + 2] = lerp(CLOUD_BOTTOM.b, CLOUD_TOP.b, glyph.warmth)
+      const flicker = motion * 0.08 + torusSpin * glyph.torusWeight * 0.12 + stemRise * glyph.stemWeight * 0.06
+
+      fg[colorIndex] = clamp01(glyph.baseR + flicker * 0.15)
+      fg[colorIndex + 1] = clamp01(glyph.baseG + flicker * 0.34 + glyph.torusWeight * 0.04)
+      fg[colorIndex + 2] = clamp01(glyph.baseB + flicker * 0.1)
       fg[colorIndex + 3] = 1
     }
   }
