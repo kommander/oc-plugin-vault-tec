@@ -33,6 +33,15 @@ const fmtCaps = (n: number): string => {
   return "$" + n.toFixed(4)
 }
 
+const toNumber = (value: unknown): number => {
+  if (typeof value !== "number") return 0
+  return Number.isFinite(value) ? value : 0
+}
+
+const logContext = (...args: unknown[]) => {
+  console.log("[PIPBOY][CTX]", ...args)
+}
+
 export const PipBoyContext = (props: {
   theme: TuiThemeCurrent
   api: Api
@@ -41,23 +50,49 @@ export const PipBoyContext = (props: {
   const [barWidth, setBarWidth] = createSignal(12)
   const data = createMemo(() => {
     const messages = props.api.state.session.messages(props.sessionId)
+
+    logContext("recompute:start", {
+      sessionId: props.sessionId,
+      messageCount: messages.length,
+    })
+
     let totalInput = 0
     let totalOutput = 0
     let totalCacheRead = 0
     let totalCost = 0
-    let lastInput = 0
-    let lastOutput = 0
+    let latestInput = 0
+    let latestOutput = 0
     let lastModelID = ""
     let lastProviderID = ""
 
-    for (const msg of messages) {
+    for (const [idx, msg] of messages.entries()) {
       if (msg.role !== "assistant") continue
-      totalInput += msg.tokens.input
-      totalOutput += msg.tokens.output
-      totalCacheRead += msg.tokens.cache.read
-      totalCost += msg.cost
-      lastInput = msg.tokens.input
-      lastOutput = msg.tokens.output
+      const input = toNumber(msg.tokens.input)
+      const output = toNumber(msg.tokens.output)
+      const cacheRead = toNumber(msg.tokens.cache.read)
+      const cost = toNumber(msg.cost)
+
+      logContext("message", {
+        idx,
+        id: msg.id,
+        role: msg.role,
+        providerID: msg.providerID,
+        modelID: msg.modelID,
+        input,
+        output,
+        cacheRead,
+        cost,
+      })
+
+      totalInput += input
+      totalOutput += output
+      totalCacheRead += cacheRead
+      totalCost += cost
+
+      if (!msg.providerID || !msg.modelID) continue
+      if (input <= 0 && output <= 0) continue
+      latestInput = input
+      latestOutput = output
       lastModelID = msg.modelID
       lastProviderID = msg.providerID
     }
@@ -73,6 +108,12 @@ export const PipBoyContext = (props: {
       if (model) {
         contextLimit = model.limit.context
         outputLimit = model.limit.output
+        logContext("provider:exact", {
+          providerID: provider.id,
+          modelID: lastModelID,
+          contextLimit,
+          outputLimit,
+        })
         break
       }
     }
@@ -83,21 +124,49 @@ export const PipBoyContext = (props: {
         if (model) {
           contextLimit = model.limit.context
           outputLimit = model.limit.output
+          logContext("provider:scan", {
+            providerID: provider.id,
+            modelID: lastModelID,
+            contextLimit,
+            outputLimit,
+          })
           break
         }
       }
     }
 
+    const contextRatio = contextLimit > 0 ? Math.min(1, totalInput / contextLimit) : 0
+    const outputRatio = outputLimit > 0 ? Math.min(1, totalOutput / outputLimit) : 0
+    const cacheRatio = totalInput > 0 ? Math.min(1, totalCacheRead / totalInput) : 0
+
+    logContext("recompute:summary", {
+      latestInput,
+      latestOutput,
+      totalInput,
+      totalOutput,
+      totalCacheRead,
+      totalCost,
+      contextLimit,
+      outputLimit,
+      contextRatio,
+      outputRatio,
+      cacheRatio,
+      lastModelID,
+      lastProviderID,
+      hasData: totalInput > 0 || totalOutput > 0,
+    })
+
     return {
-      lastInput,
-      lastOutput,
+      latestInput,
+      latestOutput,
+      totalInput,
       totalOutput,
       totalCost,
       contextLimit,
       outputLimit,
-      contextRatio: contextLimit > 0 ? Math.min(1, lastInput / contextLimit) : 0,
-      outputRatio: outputLimit > 0 ? Math.min(1, lastOutput / outputLimit) : 0,
-      cacheRatio: totalInput > 0 ? Math.min(1, totalCacheRead / totalInput) : 0,
+      contextRatio,
+      outputRatio,
+      cacheRatio,
       hasData: totalInput > 0 || totalOutput > 0,
     }
   })
@@ -109,9 +178,9 @@ export const PipBoyContext = (props: {
     return props.theme.primary
   })
 
-  const ctxInfo = createMemo(() => `${fmt(data().lastInput)} / ${fmt(data().contextLimit)} tokens`)
+  const ctxInfo = createMemo(() => `${fmt(data().totalInput)} / ${fmt(data().contextLimit)} tokens`)
   const ctxPct = createMemo(() => ` ${pct(data().contextRatio)}`)
-  const outInfo = createMemo(() => `${fmt(data().lastOutput)} / ${fmt(data().outputLimit)} tokens`)
+  const outInfo = createMemo(() => `${fmt(data().totalOutput)} / ${fmt(data().outputLimit)} tokens`)
   const outPct = createMemo(() => ` ${pct(data().outputRatio)}`)
   const cachePct = createMemo(() => ` ${pct(data().cacheRatio)}`)
 
