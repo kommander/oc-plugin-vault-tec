@@ -272,7 +272,7 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
           const Hint = (
             <box flexShrink={0} flexDirection="row" gap={1}>
               <text fg={theme.textMuted}>
-                <span style={{ fg: theme.primary }}>Vault-Tec</span> Automated Research Terminal -- Preparing for the Future!
+                <span style={{ fg: theme.primary }}>Vault-Tec</span> Terminal
               </text>
             </box>
           )
