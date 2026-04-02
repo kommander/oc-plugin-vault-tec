@@ -42,11 +42,7 @@ const logContext = (...args: unknown[]) => {
   console.log("[PIPBOY][CTX]", ...args)
 }
 
-export const PipBoyContext = (props: {
-  theme: TuiThemeCurrent
-  api: Api
-  sessionId: string
-}) => {
+export const PipBoyContext = (props: { theme: TuiThemeCurrent; api: Api; sessionId: string }) => {
   const [barWidth, setBarWidth] = createSignal(12)
   const data = createMemo(() => {
     const messages = props.api.state.session.messages(props.sessionId)
@@ -101,10 +97,7 @@ export const PipBoyContext = (props: {
     let outputLimit = 0
 
     for (const provider of props.api.state.provider) {
-      const model =
-        provider.id === lastProviderID
-          ? provider.models[lastModelID]
-          : undefined
+      const model = provider.id === lastProviderID ? provider.models[lastModelID] : undefined
       if (model) {
         contextLimit = model.limit.context
         outputLimit = model.limit.output

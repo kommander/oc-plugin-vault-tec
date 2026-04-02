@@ -2,12 +2,7 @@
 /** @jsxImportSource @opentui/solid */
 import { TargetChannel, VignetteEffect } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import type {
-  TuiPlugin,
-  TuiPluginModule,
-  TuiSlotPlugin,
-  TuiThemeCurrent,
-} from "@opencode-ai/plugin/tui"
+import type { TuiPlugin, TuiPluginModule, TuiSlotPlugin, TuiThemeCurrent } from "@opencode-ai/plugin/tui"
 import { Show, createMemo, createSignal } from "solid-js"
 import {
   SettingsDialog,
@@ -158,15 +153,8 @@ const withKV = (api: Api, value: Cfg): Cfg => {
     ...value,
     set: bool(api.kv.get(settingKey.set, value.set), value.set),
     scan: bool(api.kv.get(settingKey.scan, value.scan), value.scan),
-    scanSpeed: Math.max(
-      0,
-      num(api.kv.get(settingKey.scanSpeed, value.scanSpeed), value.scanSpeed),
-    ),
-    vignette: clamp(
-      num(api.kv.get(settingKey.vignette, value.vignette), value.vignette),
-      0,
-      1,
-    ),
+    scanSpeed: Math.max(0, num(api.kv.get(settingKey.scanSpeed, value.scanSpeed), value.scanSpeed)),
+    vignette: clamp(num(api.kv.get(settingKey.vignette, value.vignette), value.vignette), 0, 1),
     sidebar: bool(api.kv.get(settingKey.sidebar, value.sidebar), value.sidebar),
     tips: bool(api.kv.get(settingKey.tips, value.tips), value.tips),
   }
@@ -202,13 +190,8 @@ const Home = (props: { theme: TuiThemeCurrent }) => {
         }
         const wide = own.width >= home1w
         setGap((prev) => {
-          const width = wide
-            ? prev.width > 0
-              ? Math.min(prev.width, next.width)
-              : next.width
-            : prev.width
-          const height =
-            prev.height > 0 ? Math.min(prev.height, next.height) : next.height
+          const width = wide ? (prev.width > 0 ? Math.min(prev.width, next.width) : next.width) : prev.width
+          const height = prev.height > 0 ? Math.min(prev.height, next.height) : next.height
           if (prev.width === width && prev.height === height) return prev
           return {
             width,
@@ -223,17 +206,7 @@ const Home = (props: { theme: TuiThemeCurrent }) => {
         const lines = logo()
         const big = lines !== home
         return lines.map((line, i) => (
-          <text
-            fg={
-              big
-                ? props.theme.text
-                : i < 2
-                  ? props.theme.textMuted
-                  : props.theme.text
-            }
-          >
-            {line}
-          </text>
+          <text fg={big ? props.theme.text : i < 2 ? props.theme.textMuted : props.theme.text}>{line}</text>
         ))
       })()}
     </box>
@@ -276,9 +249,7 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
               shell?: string[]
             }
           }) => JSX.Element
-          type Slot = (
-            props: { name: string } & Record<string, unknown>,
-          ) => JSX.Element | null
+          type Slot = (props: { name: string } & Record<string, unknown>) => JSX.Element | null
           if (!("Prompt" in api.ui)) return null
           if (!("Slot" in api.ui)) return null
           const Prompt = api.ui.Prompt as Prompt
@@ -297,10 +268,7 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
               hint={Hint}
               right={
                 <box flexDirection="row" gap={1}>
-                  <Slot
-                    name="home_prompt_right"
-                    workspace_id={value.workspace_id}
-                  />
+                  <Slot name="home_prompt_right" workspace_id={value.workspace_id} />
                 </box>
               }
               placeholders={{
@@ -313,16 +281,14 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
         home_prompt_right(ctx) {
           return (
             <text fg={ctx.theme.current.textMuted}>
-              <span style={{ fg: ctx.theme.current.primary }}>Vault-Tec</span>{" "}
-              ready
+              <span style={{ fg: ctx.theme.current.primary }}>Vault-Tec</span> ready
             </text>
           )
         },
         session_prompt_right(ctx, value) {
           return (
             <text fg={ctx.theme.current.textMuted}>
-              <span style={{ fg: ctx.theme.current.primary }}>VT</span>{" "}
-              {value.session_id.slice(0, 8)}
+              <span style={{ fg: ctx.theme.current.primary }}>VT</span> {value.session_id.slice(0, 8)}
             </text>
           )
         },
@@ -346,11 +312,7 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
         sidebar_content(ctx, input) {
           return (
             <Show when={value().sidebar}>
-              <PipBoyContext
-                theme={ctx.theme.current}
-                api={api}
-                sessionId={input.session_id}
-              />
+              <PipBoyContext theme={ctx.theme.current} api={api} sessionId={input.session_id} />
             </Show>
           )
         },
@@ -374,9 +336,7 @@ const slot = (api: Api, value: () => Cfg): TuiSlotPlugin[] => {
   ]
 }
 
-const SCAN_GAIN_MATRIX = new Float32Array([
-  2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1,
-])
+const SCAN_GAIN_MATRIX = new Float32Array([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1])
 
 const SCAN_BAND_SIZES = new Int32Array([6, 8, 5])
 const SCAN_BAND_BOOSTS = new Float32Array([0.35, 0.25, 0.3])
@@ -500,9 +460,7 @@ const tui: TuiPlugin = async (api, options) => {
   let tips = false
   const disableTips = async () => {
     if (tips) return
-    const item = api.plugins
-      .list()
-      .find((entry) => entry.id === "internal:home-tips")
+    const item = api.plugins.list().find((entry) => entry.id === "internal:home-tips")
     if (!item?.enabled || !item.active) return
     const ok = await api.plugins.deactivate("internal:home-tips")
     if (!ok) {
@@ -606,9 +564,7 @@ const tui: TuiPlugin = async (api, options) => {
   }
 
   const showSettings = () => {
-    api.ui.dialog.replace(() => (
-      <SettingsDialog api={api} value={value} flip={flip} tune={tune} />
-    ))
+    api.ui.dialog.replace(() => <SettingsDialog api={api} value={value} flip={flip} tune={tune} />)
   }
 
   if (value().tips) {

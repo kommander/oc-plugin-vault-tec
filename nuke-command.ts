@@ -4,43 +4,9 @@ import type { TuiPlugin } from "@opencode-ai/plugin/tui"
 
 type Api = Parameters<TuiPlugin>[0]
 
-const FLASH_MATRIX = new Float32Array([
-  0.9,
-  0.55,
-  0.2,
-  0.04,
-  0.65,
-  2.8,
-  0.65,
-  0.34,
-  0.2,
-  0.55,
-  0.9,
-  0.04,
-  0,
-  0,
-  0,
-  1,
-])
+const FLASH_MATRIX = new Float32Array([0.9, 0.55, 0.2, 0.04, 0.65, 2.8, 0.65, 0.34, 0.2, 0.55, 0.9, 0.04, 0, 0, 0, 1])
 
-const CLOUD_HIDE_MATRIX = new Float32Array([
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  1,
-])
+const CLOUD_HIDE_MATRIX = new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
 
 const FLASH_ONE_MS = 140
 const FLASH_GAP_MS = 110
@@ -434,18 +400,30 @@ const createNukePostProcess = (onDone: () => void) => {
 
         if (shift > 0) {
           for (let x = width - 1; x >= shift; x--) {
-            const di = rowStart + x, si = di - shift
-            chars[di] = chars[si]; attrs[di] = attrs[si]
-            const dc = di * 4, sc = si * 4
-            fg[dc] = fg[sc]; fg[dc + 1] = fg[sc + 1]; fg[dc + 2] = fg[sc + 2]; fg[dc + 3] = fg[sc + 3]
+            const di = rowStart + x,
+              si = di - shift
+            chars[di] = chars[si]
+            attrs[di] = attrs[si]
+            const dc = di * 4,
+              sc = si * 4
+            fg[dc] = fg[sc]
+            fg[dc + 1] = fg[sc + 1]
+            fg[dc + 2] = fg[sc + 2]
+            fg[dc + 3] = fg[sc + 3]
           }
         } else {
           const s = -shift
           for (let x = 0; x < width - s; x++) {
-            const di = rowStart + x, si = di + s
-            chars[di] = chars[si]; attrs[di] = attrs[si]
-            const dc = di * 4, sc = si * 4
-            fg[dc] = fg[sc]; fg[dc + 1] = fg[sc + 1]; fg[dc + 2] = fg[sc + 2]; fg[dc + 3] = fg[sc + 3]
+            const di = rowStart + x,
+              si = di + s
+            chars[di] = chars[si]
+            attrs[di] = attrs[si]
+            const dc = di * 4,
+              sc = si * 4
+            fg[dc] = fg[sc]
+            fg[dc + 1] = fg[sc + 1]
+            fg[dc + 2] = fg[sc + 2]
+            fg[dc + 3] = fg[sc + 3]
           }
         }
       } else if (effect === 2) {

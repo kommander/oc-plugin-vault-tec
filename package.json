@@ -3,6 +3,10 @@
   "name": "oc-plugin-vault-tec",
   "version": "0.2.0",
   "type": "module",
+  "scripts": {
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check ."
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kommander/oc-plugin-vault-tec.git"
@@ -30,6 +34,9 @@
   },
   "engines": {
     "opencode": ">=1.3.14"
+  },
+  "devDependencies": {
+    "oxfmt": "0.41.0"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": "*",
