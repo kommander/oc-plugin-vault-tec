@@ -29,7 +29,7 @@
     }
   },
   "engines": {
-    "opencode": ">=1.3.13"
+    "opencode": ">=1.3.14"
   },
   "peerDependencies": {
     "@opencode-ai/plugin": "*",
